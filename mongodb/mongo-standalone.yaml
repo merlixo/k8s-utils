@@ -1,0 +1,61 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: mongo
+  namespace: mongo
+  labels:
+    name: mongo
+spec:
+  ports:
+  - port: 27017
+    targetPort: 27017
+  clusterIP: None
+  selector:
+    role: mongo
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: mongo
+  namespace: mongo
+spec:
+  serviceName: mongo
+  replicas: 1
+  selector:
+    matchLabels:
+      role: mongo
+  template:
+    metadata:
+      labels:
+        role: mongo
+    spec:
+      terminationGracePeriodSeconds: 10
+      containers:
+        - name: mongo
+          image: mongo:4.0
+          ports:
+            - containerPort: 27017
+          command: ["mongod", "--auth"]
+          resources:
+            requests:
+              cpu: 250m
+              memory: 500Mi
+            limits:
+              memory: 2Gi
+          readinessProbe:
+            tcpSocket:
+              port: 27017
+            timeoutSeconds: 1
+          volumeMounts:
+            - name: mongo-persistent-storage
+              mountPath: /data/db
+  volumeClaimTemplates:
+  - metadata:
+      name: mongo-persistent-storage
+      annotations:
+        volume.beta.kubernetes.io/storage-class: "gp2"
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      resources:
+        requests:
+          storage: 10Gi
